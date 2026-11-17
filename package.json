@@ -1,0 +1,1 @@
+{"name":"powerinsights-workspace","private":true,"scripts":{"dev":"bash scripts/preview.sh"}}

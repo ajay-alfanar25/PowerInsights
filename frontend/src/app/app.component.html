@@ -1,0 +1,43 @@
+<header class="mast"><div class="wrap"><div class="row">
+  <div><h1>PowerInsights</h1><div class="meta">Saudi Arabia · HVDC & STATCOM intelligence</div><div class="meta" id="meta"></div></div>
+  <div class="btns noprint"><button class="chip" (click)="reload()" [disabled]="loading()">Refresh</button><button class="chip" (click)="print()">Print / PDF</button><span id="btns"></span></div>
+</div><div id="tabbar"></div></div></header>
+@if(loading()){<div class="wrap status-message" role="status">Loading project data…</div>}
+@if(error()){<div class="wrap status-message error" role="alert">{{error()}} <button class="chip" (click)="reload()">Retry</button></div>}
+@if(notice()){<div class="wrap status-message" role="status">{{notice()}} <button class="linkbtn" (click)="notice.set('')">Dismiss</button></div>}
+<main class="wrap" id="main"></main><div class="wrap foot" id="foot"></div>
+@if(draft(); as p){
+<dialog #editor class="project-editor" (cancel)="onCancel($event)" aria-labelledby="editor-title">
+  <form (ngSubmit)="save()">
+    <div class="editor-head"><div><span class="muted">{{creating()?'New project':p['id']+' · Revision '+p['revision']}}</span><h2 id="editor-title">{{creating()?'Add project':p['name']}}</h2></div><button type="button" class="chip" (click)="close()" [disabled]="saving()" aria-label="Close editor">&#215;</button></div>
+    <nav class="editor-nav" aria-label="Editor sections">@for(section of sections;track section){<button type="button" class="chip" [attr.aria-pressed]="editSection()===section" (click)="editSection.set(section)">{{section}}</button>}</nav>
+    <div class="editor-body">
+    @if(editSection()==='Project'){
+      <div class="edit-grid">
+      @if(creating()){<label>Technology<select [ngModel]="p['technology_category']" (ngModelChange)="changeNewTechnology($event)" name="technology"><option value="STATCOM">STATCOM</option><option value="HVDC">HVDC</option></select></label>}
+      @for(key of topFields;track key){<label [class.wide]="key==='name'||key==='notes'">{{label(key)}}<textarea [rows]="key==='notes'?4:2" [(ngModel)]="p[key]" [name]="key" [required]="key==='name'"></textarea></label>}
+      <label>Status<select [(ngModel)]="p['status']" name="status">@for(s of statuses;track s){<option [value]="s">{{s}}</option>}</select></label>
+      </div>
+      @if(p['technology_category']==='STATCOM'){
+      <h3 class="edit-heading">Project cost</h3><p class="muted">Recorded costs take priority. Otherwise, the API estimates cost from the bus voltage and equivalent MVAr using the agreed reference rates.</p>
+      <div class="edit-grid"><label>Recorded project cost (USD)<input type="number" min="0" step="0.01" name="recordedCost" [(ngModel)]="p['recorded_cost_usd']" placeholder="Not available"></label>
+      <label>Equivalent MVAr for costing<input type="number" min="0" step="any" name="equivalent" [(ngModel)]="p['equivalent_mvar']" placeholder="Not available"></label></div>
+      <p class="muted">Equivalent MVAr is positive + absolute negative rating, multiplied by the explicit unit count once. Changing rating or units recalculates this value when the rating is unambiguous; you can enter a verified total here.</p>
+      <div class="cost-preview">Current saved report cost: <strong>{{p['specs']['cost']||'Not available'}}</strong><br>{{p['cost_basis']}}</div>}
+      @if(history().length){<h3 class="edit-heading">Recent changes</h3>@for(h of history();track h.revision){<div class="muted">Revision {{h.revision}} · {{h.changedAt}}</div>}}
+    }
+    @if(editSection()==='General Specs'||editSection()==='Components'||editSection()==='Additional details'){
+      @let group=editSection()==='General Specs'?'specs':editSection()==='Components'?'components':'specs_extra';
+      <p class="muted">Changes update the project views and dashboard after saving. References for changed spec values are cleared unless you update their source mapping.</p>
+      <div class="edit-grid">@for(key of fields(group);track key){<label>{{label(key)}}<textarea rows="3" [(ngModel)]="p[group][key]" [name]="group+'_'+key"></textarea></label>}</div>
+    }
+    @if(editSection()==='Locations & sources'){
+      <p class="muted">Location coordinates feed the map. Source IDs refer to existing source records; edit the per-spec mapping to associate a specification with a source.</p>
+      <div class="edit-grid">@for(key of jsonFields;track key){<label class="wide">{{label(key)}}<textarea class="json-editor" rows="7" [(ngModel)]="jsonDraft[key]" [name]="'json_'+key"></textarea></label>}</div>
+      <h3 class="edit-heading">Project sources</h3>@for(s of sourceList;track s.id){<p><strong>{{s.id}}</strong> · @if(isUrl(s.url)){<a [href]="s.url" target="_blank" rel="noopener">{{s.title||s.url}}</a>}@else{<span>{{s.title||s.url||'Not available'}}</span>}<br><span class="muted">{{s.publisher}} · {{s.date}}</span></p>}
+    }
+    @if(editError()){<div class="error" role="alert">{{editError()}}</div>}
+    </div>
+    <div class="editor-footer"><span class="muted">{{creating()?'The new record will appear across PowerInsights.':'Saved changes apply across PowerInsights.'}}</span><button type="button" class="chip" (click)="close()" [disabled]="saving()">Cancel</button><button type="submit" class="primary" [disabled]="saving()">{{saving()?'Saving...':creating()?'Add project':'Save changes'}}</button></div>
+  </form>
+</dialog>}
